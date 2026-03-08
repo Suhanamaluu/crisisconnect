@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="Coordinator Dashboard - Manage camps, respond to requests, and coordinate relief.">
+    <title>Coordinator Dashboard | CDRS - Crisis Connect</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="../css/global.css">
+    <link rel="stylesheet" href="../css/user.css">
+    <link rel="stylesheet" href="../css/coordinator.css">
+</head>
+
+<body>
+    <div id="coord-dashboard">
+        <!-- Header -->
+        <header class="page-header">
+            <div class="page-header-container">
+                <a href="../index.html" class="logo">
+                    <span class="logo-icon">🛡️</span>
+                    <span class="logo-text" style="color:#fff;">CDRS</span>
+                </a>
+                <button class="mobile-menu-toggle" id="mobile-toggle" aria-label="Toggle menu">☰</button>
+                <nav class="page-nav" id="coord-nav">
+                    <a href="#" class="page-nav-link active" data-tab="tab-camps" id="nav-camps">⛺ Camps</a>
+                    <a href="#" class="page-nav-link" data-tab="tab-user-requests" id="nav-user-req">📋 User
+                        Requests</a>
+                    <a href="#" class="page-nav-link" data-tab="tab-resource-req" id="nav-res-req">📦 Resource
+                        Requests</a>
+                    <a href="#" class="page-nav-link" data-tab="tab-disaster-map" id="nav-map">🗺️ Mark Disaster
+                        Area</a>
+                    <a href="#" class="page-nav-link" id="coord-logout"
+                        style="color:var(--color-emergency-red-light);">🚪 Logout</a>
+                </nav>
+            </div>
+        </header>
+
+        <main class="dashboard-content">
+            <div class="coord-info-bar" id="coord-info-bar">
+                <span>🎯</span>
+                <span id="coord-welcome">Welcome, Coordinator</span>
+            </div>
+
+            <!-- Camps Tab -->
+            <section class="tab-content active" id="tab-camps">
+                <div class="section-header">
+                    <h1 class="section-title">Camps Management</h1>
+                    <p class="section-subtitle">View and update camp details</p>
+                </div>
+                <div class="coord-camps-grid" id="coord-camps-container"></div>
+            </section>
+
+            <!-- User Requests Tab -->
+            <section class="tab-content" id="tab-user-requests">
+                <div class="section-header">
+                    <h1 class="section-title">User Requests</h1>
+                    <p class="section-subtitle">Review and respond to user emergency requests</p>
+                </div>
+                <div class="requests-grid" id="user-requests-container"></div>
+            </section>
+
+            <!-- Resource Requests Tab -->
+            <section class="tab-content" id="tab-resource-req">
+                <div class="section-header">
+                    <h1 class="section-title">Resource Requests</h1>
+                    <p class="section-subtitle">Submit resource demands for your camp</p>
+                </div>
+                <div class="resource-form-container">
+                    <form class="resource-form" id="resource-form">
+                        <div class="form-group">
+                            <label class="form-label" for="res-coord-name">Coordinator Name</label>
+                            <input class="form-input" type="text" id="res-coord-name" readonly>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label" for="res-type">Resource Type *</label>
+                                <select class="form-select" id="res-type" required>
+                                    <option value="">Select type</option>
+                                    <option value="Food Supplies">🍞 Food Supplies</option>
+                                    <option value="Medical Kits">💊 Medical Kits</option>
+                                    <option value="Blankets & Bedding">🛏️ Blankets & Bedding</option>
+                                    <option value="Water Supply">💧 Water Supply</option>
+                                    <option value="Tents">⛺ Tents</option>
+                                    <option value="Other">📦 Other</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="res-quantity">Quantity Needed *</label>
+                                <input class="form-input" type="number" id="res-quantity" placeholder="e.g., 100"
+                                    min="1" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="res-date">Required Before</label>
+                            <input class="form-input" type="date" id="res-date">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="res-description">Description</label>
+                            <textarea class="form-textarea" id="res-description"
+                                placeholder="Additional details (optional)"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn--primary btn--lg">📤 Submit Request</button>
+                    </form>
+                </div>
+                <div class="resource-list" id="resource-list"></div>
+            </section>
+
+            <!-- Mark Disaster Area Tab -->
+            <section class="tab-content" id="tab-disaster-map">
+                <div class="section-header">
+                    <h1 class="section-title">Mark Disaster Areas</h1>
+                    <p class="section-subtitle">Click grid cells to mark danger, risk, or safe zones. Changes reflect in
+                        User Safe Routes.</p>
+                </div>
+
+                <div class="coord-map-tools" id="coord-map-tools">
+                    <button class="map-tool-btn map-tool-btn--danger active" data-tool="danger">🔴 Danger</button>
+                    <button class="map-tool-btn map-tool-btn--moderate" data-tool="moderate">🟡 Risk</button>
+                    <button class="map-tool-btn map-tool-btn--safe" data-tool="safe">🟢 Safe</button>
+                    <button class="map-tool-btn map-tool-btn--clear" data-tool="clear">🧹 Clear All</button>
+                </div>
+
+                <div class="map-legend">
+                    <div class="legend-item">
+                        <div class="legend-color legend-color--safe"></div> Safe
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color legend-color--moderate"></div> Moderate Risk
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color legend-color--danger"></div> Danger / Blocked
+                    </div>
+                </div>
+
+                <div class="grid-map-container">
+                    <div class="grid-map coord-grid-map" id="coord-grid-map"></div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="../js/app.js"></script>
+    <script src="../js/map.js"></script>
+    <script src="../js/coordinator.js"></script>
+</body>
+
+</html>
