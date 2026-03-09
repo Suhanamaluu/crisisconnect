@@ -116,9 +116,15 @@ function seedData() {
 }
 
 // Landing page stats animation
-function animateStats() {
-    const camps = JSON.parse(localStorage.getItem('cdrs_camps') || '[]');
-    const requests = JSON.parse(localStorage.getItem('cdrs_requests') || '[]');
+async function animateStats() {
+    let camps, requests;
+    if (typeof DB !== 'undefined') {
+        camps = await DB.getCamps();
+        requests = await DB.getRequests();
+    } else {
+        camps = JSON.parse(localStorage.getItem('cdrs_camps') || '[]');
+        requests = JSON.parse(localStorage.getItem('cdrs_requests') || '[]');
+    }
     const statCamps = document.getElementById('stat-camps');
     const statRequests = document.getElementById('stat-requests');
     const statRoutes = document.getElementById('stat-routes');
@@ -138,13 +144,13 @@ function animateNumber(el, target) {
 }
 
 // Init
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     Toast.init();
     seedData();
     initTabs();
     initMobileMenu();
     // Landing page specific
     if (document.getElementById('hero-section')) {
-        animateStats();
+        await animateStats();
     }
 });

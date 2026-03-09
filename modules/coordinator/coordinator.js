@@ -25,7 +25,7 @@ function initCoordinatorAuth() {
     // Signup
     const signupForm = document.getElementById('signup-form');
     if (signupForm) {
-        signupForm.addEventListener('submit', (e) => {
+        signupForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const name = document.getElementById('signup-name').value.trim();
             const campCode = document.getElementById('signup-camp-code').value.trim();
@@ -46,14 +46,24 @@ function initCoordinatorAuth() {
 
             const coordCode = String(Math.floor(100000 + Math.random() * 900000));
             const coordinator = { id: coordCode, name, campCode, email, phone, password };
-            const coordinators = JSON.parse(localStorage.getItem('cdrs_coordinators') || '[]');
+
+            let coordinators;
+            if (typeof DB !== 'undefined') {
+                coordinators = await DB.getCoordinators();
+            } else {
+                coordinators = JSON.parse(localStorage.getItem('cdrs_coordinators') || '[]');
+            }
 
             if (coordinators.find(c => c.email === email)) {
                 Toast.show('Email already registered!', 'error'); return;
             }
 
-            coordinators.push(coordinator);
-            localStorage.setItem('cdrs_coordinators', JSON.stringify(coordinators));
+            if (typeof DB !== 'undefined') {
+                await DB.addCoordinator(coordinator);
+            } else {
+                coordinators.push(coordinator);
+                localStorage.setItem('cdrs_coordinators', JSON.stringify(coordinators));
+            }
 
             signupOverlay.classList.remove('active');
             signupForm.reset();
@@ -73,11 +83,18 @@ function initCoordinatorAuth() {
     // Login
     const loginForm = document.getElementById('login-form');
     if (loginForm) {
-        loginForm.addEventListener('submit', (e) => {
+        loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const code = document.getElementById('login-code').value.trim();
             const password = document.getElementById('login-password').value;
-            const coordinators = JSON.parse(localStorage.getItem('cdrs_coordinators') || '[]');
+
+            let coordinators;
+            if (typeof DB !== 'undefined') {
+                coordinators = await DB.getCoordinators();
+            } else {
+                coordinators = JSON.parse(localStorage.getItem('cdrs_coordinators') || '[]');
+            }
+
             const coord = coordinators.find(c => c.id === code && c.password === password);
 
             if (!coord) {
@@ -103,26 +120,32 @@ function checkCoordinatorAuth() {
     return JSON.parse(coord);
 }
 
-function initCoordDashboard() {
+async function initCoordDashboard() {
     const coord = checkCoordinatorAuth();
     if (!coord) return;
 
     const welcomeEl = document.getElementById('coord-welcome');
     if (welcomeEl) welcomeEl.textContent = `Welcome, ${coord.name}`;
 
-    renderCoordCamps();
-    renderUserRequests();
-    renderResourceRequests();
+    await renderCoordCamps();
+    await renderUserRequests();
+    await renderResourceRequests();
     initResourceForm(coord);
     initCoordMap();
     initLogout();
 }
 
 // Camps Management
-function renderCoordCamps() {
+async function renderCoordCamps() {
     const container = document.getElementById('coord-camps-container');
     if (!container) return;
-    const camps = JSON.parse(localStorage.getItem('cdrs_camps') || '[]');
+
+    let camps;
+    if (typeof DB !== 'undefined') {
+        camps = await DB.getCamps();
+    } else {
+        camps = JSON.parse(localStorage.getItem('cdrs_camps') || '[]');
+    }
 
     if (camps.length === 0) {
         container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⛺</div><p class="empty-state-text">No camps configured</p></div>';
@@ -168,10 +191,16 @@ function editCamp(idx) {
     saveBtn.style.display = 'inline-flex';
 }
 
-function saveCamp(idx) {
+async function saveCamp(idx) {
     const body = document.getElementById(`camp-body-${idx}`);
     const inputs = body.querySelectorAll('.camp-edit-input');
-    const camps = JSON.parse(localStorage.getItem('cdrs_camps') || '[]');
+
+    let camps;
+    if (typeof DB !== 'undefined') {
+        camps = await DB.getCamps();
+    } else {
+        camps = JSON.parse(localStorage.getItem('cdrs_camps') || '[]');
+    }
 
     inputs.forEach(input => {
         const field = input.dataset.field;
@@ -183,16 +212,27 @@ function saveCamp(idx) {
     else if (camps[idx].foodStock >= 100) camps[idx].foodAvailability = 'Medium';
     else camps[idx].foodAvailability = 'Low';
 
+    // Save to Supabase + localStorage
+    if (typeof DB !== 'undefined') {
+        await DB.updateCamp(camps[idx].id, camps[idx]);
+    }
     localStorage.setItem('cdrs_camps', JSON.stringify(camps));
+
     Toast.show('Camp updated successfully!', 'success');
-    renderCoordCamps();
+    await renderCoordCamps();
 }
 
 // User Requests
-function renderUserRequests() {
+async function renderUserRequests() {
     const container = document.getElementById('user-requests-container');
     if (!container) return;
-    const requests = JSON.parse(localStorage.getItem('cdrs_requests') || '[]');
+
+    let requests;
+    if (typeof DB !== 'undefined') {
+        requests = await DB.getRequests();
+    } else {
+        requests = JSON.parse(localStorage.getItem('cdrs_requests') || '[]');
+    }
 
     if (requests.length === 0) {
         container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><p class="empty-state-text">No user requests yet</p></div>';
@@ -229,16 +269,30 @@ function renderUserRequests() {
     }).join('');
 }
 
-function handleRequest(idx, status) {
-    const requests = JSON.parse(localStorage.getItem('cdrs_requests') || '[]');
+async function handleRequest(idx, status) {
+    let requests;
+    if (typeof DB !== 'undefined') {
+        requests = await DB.getRequests();
+    } else {
+        requests = JSON.parse(localStorage.getItem('cdrs_requests') || '[]');
+    }
+
     const coord = JSON.parse(localStorage.getItem('cdrs_current_coordinator') || '{}');
     requests[idx].status = status;
+    let acceptedBy = null;
     if (status === 'accepted') {
-        requests[idx].acceptedBy = coord.name + ' (' + (coord.campCode || 'N/A') + ')';
+        acceptedBy = coord.name + ' (' + (coord.campCode || 'N/A') + ')';
+        requests[idx].acceptedBy = acceptedBy;
+    }
+
+    // Save to Supabase + localStorage
+    if (typeof DB !== 'undefined') {
+        await DB.updateRequestStatus(requests[idx].id, status, acceptedBy);
     }
     localStorage.setItem('cdrs_requests', JSON.stringify(requests));
+
     Toast.show(`Request ${status}!`, status === 'accepted' ? 'success' : 'warning');
-    renderUserRequests();
+    await renderUserRequests();
 }
 
 // Resource Requests
@@ -249,7 +303,7 @@ function initResourceForm(coord) {
     const nameField = document.getElementById('res-coord-name');
     if (nameField) nameField.value = coord.name;
 
-    form.addEventListener('submit', (e) => {
+    form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const resource = {
             id: 'RES-' + Date.now(),
@@ -265,21 +319,31 @@ function initResourceForm(coord) {
             Toast.show('Please fill required fields.', 'error'); return;
         }
 
-        const resources = JSON.parse(localStorage.getItem('cdrs_resource_requests') || '[]');
-        resources.push(resource);
-        localStorage.setItem('cdrs_resource_requests', JSON.stringify(resources));
+        if (typeof DB !== 'undefined') {
+            await DB.addResourceRequest(resource);
+        } else {
+            const resources = JSON.parse(localStorage.getItem('cdrs_resource_requests') || '[]');
+            resources.push(resource);
+            localStorage.setItem('cdrs_resource_requests', JSON.stringify(resources));
+        }
 
         form.reset();
         if (nameField) nameField.value = coord.name;
         Toast.show('Resource request submitted!', 'success');
-        renderResourceRequests();
+        await renderResourceRequests();
     });
 }
 
-function renderResourceRequests() {
+async function renderResourceRequests() {
     const container = document.getElementById('resource-list');
     if (!container) return;
-    const resources = JSON.parse(localStorage.getItem('cdrs_resource_requests') || '[]');
+
+    let resources;
+    if (typeof DB !== 'undefined') {
+        resources = await DB.getResourceRequests();
+    } else {
+        resources = JSON.parse(localStorage.getItem('cdrs_resource_requests') || '[]');
+    }
 
     if (resources.length === 0) {
         container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📦</div><p class="empty-state-text">No resource requests</p></div>';
@@ -301,17 +365,26 @@ function renderResourceRequests() {
 let coordMapTool = 'danger';
 let coordGrid = [];
 
-function initCoordMap() {
+async function initCoordMap() {
     const container = document.getElementById('coord-grid-map');
     if (!container) return;
 
-    coordGrid = MapModule.loadGrid();
+    if (typeof DB !== 'undefined') {
+        coordGrid = await DB.getMapGrid();
+    } else {
+        coordGrid = MapModule.loadGrid();
+    }
+
     MapModule.renderGrid('coord-grid-map', {
         clickable: true,
-        onClick: (r, c, cell) => {
+        onClick: async (r, c, cell) => {
             // Toggle cell status based on selected tool
             coordGrid[r][c] = coordMapTool;
-            MapModule.saveGrid(coordGrid);
+            if (typeof DB !== 'undefined') {
+                await DB.saveMapGrid(coordGrid);
+            } else {
+                MapModule.saveGrid(coordGrid);
+            }
             // Update cell classes
             cell.className = 'grid-cell';
             if (coordMapTool === 'danger') cell.classList.add('danger');
@@ -322,19 +395,27 @@ function initCoordMap() {
 
     // Tool buttons
     document.querySelectorAll('.map-tool-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', async () => {
             document.querySelectorAll('.map-tool-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             coordMapTool = btn.dataset.tool;
 
             if (coordMapTool === 'clear') {
                 coordGrid = Array.from({ length: 15 }, () => Array(15).fill('safe'));
-                MapModule.saveGrid(coordGrid);
+                if (typeof DB !== 'undefined') {
+                    await DB.saveMapGrid(coordGrid);
+                } else {
+                    MapModule.saveGrid(coordGrid);
+                }
                 MapModule.renderGrid('coord-grid-map', {
                     clickable: true,
-                    onClick: (r, c, cell) => {
+                    onClick: async (r, c, cell) => {
                         coordGrid[r][c] = coordMapTool === 'clear' ? 'safe' : coordMapTool;
-                        MapModule.saveGrid(coordGrid);
+                        if (typeof DB !== 'undefined') {
+                            await DB.saveMapGrid(coordGrid);
+                        } else {
+                            MapModule.saveGrid(coordGrid);
+                        }
                         cell.className = 'grid-cell';
                         cell.classList.add(coordGrid[r][c]);
                     }
@@ -357,13 +438,13 @@ function initLogout() {
 }
 
 // Init
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     // Auth page
     if (document.getElementById('auth-signup-btn')) {
         initCoordinatorAuth();
     }
     // Dashboard page
     if (document.getElementById('coord-dashboard')) {
-        initCoordDashboard();
+        await initCoordDashboard();
     }
 });

@@ -6,7 +6,7 @@ function initRequestForm() {
     const successMsg = document.getElementById('request-success');
     if (!form) return;
 
-    form.addEventListener('submit', (e) => {
+    form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const request = {
             id: 'REQ-' + Date.now(),
@@ -24,9 +24,14 @@ function initRequestForm() {
             return;
         }
 
-        const requests = JSON.parse(localStorage.getItem('cdrs_requests') || '[]');
-        requests.push(request);
-        localStorage.setItem('cdrs_requests', JSON.stringify(requests));
+        // Save to Supabase + localStorage
+        if (typeof DB !== 'undefined') {
+            await DB.addRequest(request);
+        } else {
+            const requests = JSON.parse(localStorage.getItem('cdrs_requests') || '[]');
+            requests.push(request);
+            localStorage.setItem('cdrs_requests', JSON.stringify(requests));
+        }
 
         form.reset();
         if (successMsg) {
@@ -41,19 +46,23 @@ function initRequestForm() {
 const MAP_SIZE = 15;
 let mapGrid = [];
 
-function loadMapData() {
-    const data = localStorage.getItem('cdrs_map_data');
-    if (data) {
-        mapGrid = JSON.parse(data);
+async function loadMapData() {
+    if (typeof DB !== 'undefined') {
+        mapGrid = await DB.getMapGrid();
     } else {
-        mapGrid = Array.from({ length: MAP_SIZE }, () => Array(MAP_SIZE).fill('safe'));
+        const data = localStorage.getItem('cdrs_map_data');
+        if (data) {
+            mapGrid = JSON.parse(data);
+        } else {
+            mapGrid = Array.from({ length: MAP_SIZE }, () => Array(MAP_SIZE).fill('safe'));
+        }
     }
 }
 
-function renderUserMap() {
+async function renderUserMap() {
     const container = document.getElementById('user-grid-map');
     if (!container) return;
-    loadMapData();
+    await loadMapData();
     container.innerHTML = '';
 
     // Top-left corner (empty)
@@ -90,7 +99,7 @@ function renderUserMap() {
     }
 }
 
-function findSafeRoute() {
+async function findSafeRoute() {
     const startInput = document.getElementById('route-start').value.trim();
     const endInput = document.getElementById('route-end').value.trim();
     const warningEl = document.getElementById('route-warning');
@@ -118,10 +127,10 @@ function findSafeRoute() {
         return;
     }
 
-    loadMapData();
+    await loadMapData();
 
     // Clear previous path
-    renderUserMap();
+    await renderUserMap();
 
     // BFS pathfinding - avoid danger, prefer safe over moderate
     const path = bfsPathfind(start, end);
@@ -222,11 +231,17 @@ function bfsPathfind(start, end) {
 }
 
 // Camps Display
-function renderUserCamps() {
+async function renderUserCamps() {
     const container = document.getElementById('user-camps-grid');
     if (!container) return;
 
-    const camps = JSON.parse(localStorage.getItem('cdrs_camps') || '[]');
+    let camps;
+    if (typeof DB !== 'undefined') {
+        camps = await DB.getCamps();
+    } else {
+        camps = JSON.parse(localStorage.getItem('cdrs_camps') || '[]');
+    }
+
     if (camps.length === 0) {
         container.innerHTML = `
       <div class="empty-state">
@@ -279,8 +294,8 @@ function renderUserCamps() {
 }
 
 // Init user dashboard
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     initRequestForm();
-    renderUserMap();
-    renderUserCamps();
+    await renderUserMap();
+    await renderUserCamps();
 });
